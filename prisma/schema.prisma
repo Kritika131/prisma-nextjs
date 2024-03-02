@@ -10,5 +10,114 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url = env("DATABASE_URL")
 }
+
+model User {
+  // id Int @id @default(autoincrement())
+  id String @id @default(uuid()) //uuid() it little bit more secure because people can't just change the id from one to two and access new information ..uuid is completly random and unique
+  name String
+  email String @unique
+  // isAdmin Boolean
+  // largeNUMBER BigInt
+  // preferences Json //supported by postgres, not supported by sqllite
+  // blob Bytes
+  //Posts Post[]  //A user has many post --[one to many]--a user has many posts
+  // blobb Unsupported("") 
+  //prisma allows you to take a db that olready exist and converted to a schema file and since prisma doesn't support  every single type in the entire world
+  //use to make a prisma supported datatype to unsupported by prisma 
+
+  //writtenPosts Post[]  // | we gwt it error here ,it can't validate it because it's ambiguous , 
+  //favoritePosts Post[] // |which one is writtenPosts which one is favoritePosts because they don't actually say --->these both relationship pointing to post table, we don't know which one of these relationships  is pointing ..we need to give relationship to a name--[given in post table]   
+//both above are going to be a reference to post
+
+writtenPosts Post[] @relation("WrittenPosts")
+favoritePosts Post[] @relation("FavoritePosts")
+  userPreference UserPreference? @relation(fields: [userPreferenceId],references:[id])
+  userPreferenceId String? @unique
+
+}
+
+model Post {
+  id Int @id
+  title String
+  rating Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt //Everytime we update this post it's going to automatically set this updatedAt field as the current timestamps..we don't need to track manually updatedAt.
+  
+  //userId tells what field inside post table is referencing id inside of our user table || userId in our post reference the id field in our user table and those should be the same, so we can linked together.
+  //author User @relation(fields: [userId],references: [id]) //--this array syntax right here is a fields type modifier.
+  //userId Int
+  // or               
+  //--author User @relation(fields: [authorId],references: [id])
+  // authorId Int //--if we use uuid than  make its reference as string also
+  //--authorId String
+           //first property to this relationship function you just say "WrittenPosts" and this label we can share all the other fields 
+  author User @relation("WrittenPosts",fields: [authorId],references: [id])
+  authorId String
+  favoritedBy User? @relation("FavoritePosts",fields: [favoritedById],references: [id])
+  favoritedById String?
+  categories Category[]
+
+}
+
+model UserPreference{
+  id String @id @default(uuid()) 
+  emailUpdates Boolean
+  user User?
+}
+
+//Relationships inside of postgres 
+//  3 different types of relations in postgres-->
+    // one-to-many, eg->a post has one author and a author have many post
+    //  many-to-many, eg-> each post could have many categories and each category could have many posts.
+    //one-to-one, eg->if a user has like a table of preferences, each user has one preference in a table and each preference has one user link to.
+
+
+
+//Many to Many relationship
+//A  post have many categories and a category have many relationships
+model Category {
+  id String @id @default(uuid())
+  name String
+  posts Post[]
+
+}   
+
+//we don't need to add any fancy relationship setups. It is automatically knows are category-> referencing post && post -> referencing category model and its automatically create a join table between the two that is going to hookup all these relationships for us. So that all complecated join table stuff is handled by prisma we don't need to worry about that.
+
+//Note--> all we just write above these attributes like @id @default @unique..etc are field level attribute ...we can also do block level attributes
+//Difference b/w both attributes
+//Field level attribute applies to the field
+//Block level attribute goes inside of these {}||curlybraces and it's own its own line completely
+
+//eg-->
+model Userr {
+  id String @id @default(uuid())
+  age Int
+  name String
+  email String @unique
+
+  @@unique([age,name]) // both age and name field contains unique value ..age!=name || block level attribute
+  @@index([email])
+
+}
+//Block base attribute eg-->we can create composite id that contains two different things
+// @@id([title,authorId])
+
+
+//If you want to set values of any perticular field you can use "enum"
+
+model UserEg{
+  id String @id @default(uuid())
+  role Role @default(BASIC)
+}
+enum Role{
+  BASIC
+  ADMIN 
+  EDITOR
+}
+
+//Each time whenever we change our model, WE migrate our database to include all these new information.
+//npx prisma migrate dev --name any_name 
+                    // run in development mode
